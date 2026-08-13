@@ -128,6 +128,9 @@ h1 strong{font-weight:600}
 
 /* ── Layout ─────────────────────────────────────────────────────────────── */
 .stage{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(0,.82fr);gap:48px;align-items:start}
+/* Grid items default to min-width:auto, so a wide child (the wheel, or a long
+   unbroken word) can push the whole column past the viewport on small phones. */
+.stage > *{min-width:0}
 @media (max-width:1040px){.stage{grid-template-columns:1fr;gap:34px}}
 .wheel-col{position:sticky;top:28px}
 @media (max-width:1040px){.wheel-col{position:static}}
@@ -158,6 +161,10 @@ svg.wheel text{user-select:none}
 /* Compact: the wheel shrinks, so its type has to grow inside the viewBox.
    The practice index below the panel carries the practice names. */
 .wheel.compact .path-label{font-size:26px;letter-spacing:.07em}
+.wheel.compact .p-label{font-size:22px}
+/* Reclaim the page gutter on a phone — the wheel is the one element that
+   benefits from every pixel of width. */
+@media (max-width:760px){ #wheel-mount{margin:0 -12px} }
 
 /* Hub — an HTML overlay so it can carry the practice icon */
 .hub{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
@@ -302,6 +309,15 @@ a.btn{text-decoration:none;display:inline-block}
 .path-row .nm{font-size:19px;font-weight:600;letter-spacing:.01em}
 .path-row .desc{grid-column:2/4;font-size:14.5px;color:var(--ink-2);margin-top:-3px}
 .path-row .ct{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+
+/* On a narrow phone the icon + name + count won't sit on one line without
+   forcing the panel wider than the screen, so the count drops under the name. */
+@media (max-width:520px){
+  .path-row{grid-template-columns:auto minmax(0,1fr);gap:6px 14px;padding:15px 16px}
+  .path-row .nm{font-size:18px}
+  .path-row .ct{grid-column:2;justify-self:start;margin-top:-4px}
+  .path-row .desc{grid-column:1/-1;margin-top:2px}
+}
 
 .review{margin-top:34px;border:1px dashed var(--line);border-radius:5px;padding:20px 22px;background:var(--paper)}
 .review h3{margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
@@ -1152,14 +1168,12 @@ const WHEEL = {
    ═══════════════════════════════════════════════════════════════════════════ */
 const NS = "http://www.w3.org/2000/svg";
 const CX = 360, CY = 360;
-/* Ring radii. Two sets: on wide screens the practice ring is the deepest band
-   because it carries the wrapped practice names. On a phone those names can't
-   be set legibly at any size, so the compact wheel drops them, thickens the
-   pathway ring to carry large pathway names, and leaves the practice ring as
-   tappable colour bands — the index below the panel does the naming. */
+/* Ring radii. Two sets. On a phone the wheel is roughly half the pixel width,
+   so the compact set shifts depth out of the hub and pathway ring and into the
+   practice ring, which is what has to carry wrapped names at a readable size. */
 const GEO = {
   wide:    { HUB: 82, PW_IN: 88, PW_OUT: 152, PR_IN: 160, PR_OUT: 348 },
-  compact: { HUB: 76, PW_IN: 84, PW_OUT: 182, PR_IN: 190, PR_OUT: 344 }
+  compact: { HUB: 70, PW_IN: 76, PW_OUT: 146, PR_IN: 154, PR_OUT: 352 }
 };
 let G = GEO.wide;
 const GAP_PW = 0.6, GAP_PR = 0.5;   // degrees of breathing room between slices
@@ -1382,17 +1396,19 @@ function buildWheel(){
    half they are flipped so they still read left-to-right. */
 function drawLabels(){
   svg.querySelectorAll(".seg-pr .p-label, .seg-pr .p-num").forEach(n => n.remove());
-  /* Compact: no labels at all. Twenty-two names can't be set legibly on a
-     phone, and numbers scattered round the ring read as noise — the practice
-     index below the panel carries the naming instead. */
-  if (compact) return;
 
   FLAT.forEach(pr => {
     const am = pr.mid, norm = ((am % 360) + 360) % 360, flip = norm > 180;
     const rMid = (G.PR_IN + G.PR_OUT) / 2;
     const [x, y] = pt(rMid, am);
 
-    const lines = wrap(pr.name, G.PR_OUT - G.PR_IN - 44, 3);
+    /* How many lines fit is set by the wedge, not by taste: the band's depth
+       caps how long a line can be, and the wedge's arc caps how many lines
+       stack. A seven-practice quadrant is narrower, so it gets fewer. */
+    const size = compact ? 22 : 14.5;
+    const arc = rMid * pr.step * RAD;
+    const maxLines = Math.max(1, Math.min(3, Math.floor(arc / (size * 1.25))));
+    const lines = wrap(pr.name, G.PR_OUT - G.PR_IN - (compact ? 30 : 44), maxLines);
     const t = el("text", { class:"p-label", x, y, "text-anchor":"middle",
       transform:`rotate(${flip ? am + 90 : am - 90} ${x} ${y})` });
     const first = -((lines.length - 1) * 0.58) + 0.34;
