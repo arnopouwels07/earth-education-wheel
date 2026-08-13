@@ -113,7 +113,7 @@ body{
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
 }
 
-.shell{max-width:1300px;margin:0 auto;padding:52px 34px 88px}
+.shell{max-width:1440px;margin:0 auto;padding:52px 34px 88px}
 @media (max-width:640px){.shell{padding:30px 18px 64px}}
 
 /* ── Masthead ───────────────────────────────────────────────────────────── */
@@ -127,7 +127,7 @@ h1 strong{font-weight:600}
 .masthead-tools:empty{display:none}
 
 /* ── Layout ─────────────────────────────────────────────────────────────── */
-.stage{display:grid;grid-template-columns:minmax(0,1.04fr) minmax(0,.96fr);gap:54px;align-items:start}
+.stage{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(0,.82fr);gap:48px;align-items:start}
 @media (max-width:1040px){.stage{grid-template-columns:1fr;gap:34px}}
 .wheel-col{position:sticky;top:28px}
 @media (max-width:1040px){.wheel-col{position:static}}
@@ -146,7 +146,7 @@ svg.wheel text{user-select:none}
 .wheel.has-selection .seg.in-family{opacity:.85}
 .wheel.has-selection .seg.is-selected{opacity:1}
 
-.p-label{font-family:var(--font);font-weight:600;font-size:12.4px;fill:var(--ink);pointer-events:none}
+.p-label{font-family:var(--font);font-weight:600;font-size:14.5px;fill:var(--ink);pointer-events:none}
 .p-num{font-family:var(--font);font-weight:700;font-size:24px;fill:var(--ink);pointer-events:none}
 .seg.is-selected .p-label,.seg.is-selected .p-num{fill:#fff}
 
@@ -162,7 +162,7 @@ svg.wheel text{user-select:none}
 
 /* Hub — an HTML overlay so it can carry the practice icon */
 .hub{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:23.9%;aspect-ratio:1;border-radius:50%;background:var(--card);
+  width:22.8%;aspect-ratio:1;border-radius:50%;background:var(--card);
   border:1px solid var(--line);display:flex;flex-direction:column;
   align-items:center;justify-content:center;text-align:center;gap:.5cqw;
   padding:2cqw;pointer-events:none}
@@ -1142,8 +1142,10 @@ const WHEEL = {
    ═══════════════════════════════════════════════════════════════════════════ */
 const NS = "http://www.w3.org/2000/svg";
 const CX = 360, CY = 360;
-const R_PW_IN = 94,  R_PW_OUT = 168;
-const R_PR_IN = 176, R_PR_OUT = 322;
+/* Ring radii. The practice ring is deliberately the deepest band — it carries
+   the wrapped practice names, so its depth sets how readable the wheel is. */
+const R_PW_IN = 88,  R_PW_OUT = 152;
+const R_PR_IN = 160, R_PR_OUT = 348;
 const GAP_PW = 0.6, GAP_PR = 0.5;   // degrees of breathing room between slices
 const NUDGE = 9;                    // px a slice slides outward on hover / select
 const RAD = Math.PI / 180;
@@ -1237,8 +1239,8 @@ function buildWheel(){
       const tp = el("textPath", { href:`#${id}`, startOffset:"50%" });
       tp.textContent = txt; t.appendChild(tp); g.appendChild(t);
     };
-    mk(`arc-${p.id}`,   flip ? R_PW_IN + 27 : R_PW_OUT - 25, "path-label", p.name);
-    mk(`arc-${p.id}-c`, flip ? R_PW_OUT - 16 : R_PW_IN + 19, "path-count",
+    mk(`arc-${p.id}`,   flip ? R_PW_IN + 25 : R_PW_OUT - 23, "path-label", p.name);
+    mk(`arc-${p.id}-c`, flip ? R_PW_OUT - 14 : R_PW_IN + 17, "path-count",
        `${p.practices.length} practices`);
 
     g.addEventListener("click", () => selectPathway(p));
