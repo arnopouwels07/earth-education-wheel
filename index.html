@@ -347,10 +347,8 @@ footer a:hover{color:var(--ink)}
 
   <footer>
     <span>Earth Education Activation Wheel</span>
-    <!-- The printed manual invites contributions at this address. Delete this
-         line if the address shouldn't appear on a public page. -->
-    <span>Have a resource to add? <a href="mailto:michaela@kinshipprogramme.com">michaela@kinshipprogramme.com</a></span>
-    <span id="tally"></span>
+    <span>Have questions or resources to add? Email
+      <a href="mailto:michaela@kinshipprogramme.com">michaela@kinshipprogramme.com</a></span>
   </footer>
 </div>
 
@@ -1200,11 +1198,52 @@ WHEEL.pathways.forEach(p => p.practices.forEach((pr, i) => {
 const TOTAL = FLAT.length;
 const QUARTER = 360 / WHEEL.pathways.length;
 
+/* ── Where each pathway sits on the wheel ──────────────────────────────────
+   Position is deliberately separate from reading order. The pathways are
+   listed and numbered in the manual's page order (Curriculum, Campus, Culture,
+   Community), but the manual's own wheel graphic arranges them differently, so
+   the two can't be the same list.
+
+   Quadrants, in order: 0 = top-left, 1 = top-right, 2 = bottom-right,
+   3 = bottom-left. Rearranging the wheel means editing only this map.
+   Set it to null to fall back to reading order, clockwise from top-left. */
+const WHEEL_POSITIONS = {
+  curriculum: 0,   // top-left
+  culture:    1,   // top-right
+  community:  2,   // bottom-right
+  campus:     3    // bottom-left
+};
+
+const quadrantOf = (p, i) =>
+  (WHEEL_POSITIONS && WHEEL_POSITIONS[p.id] != null) ? WHEEL_POSITIONS[p.id] : i;
+
 /* Icons are CSS custom properties; fall back to the pathway icon. */
 const iconVar = pr => {
   const own = getComputedStyle(document.documentElement).getPropertyValue(`--icon-${pr.id}`);
   return own.trim() ? `var(--icon-${pr.id})` : `var(--icon-${pr.pathway.id})`;
 };
+
+/* Practices in the order they appear around the wheel, which is not the order
+   they are listed in — pathways can be positioned independently of their
+   reading order. Arrow keys walk this, so pressing → always moves to the
+   neighbouring wedge rather than jumping across the wheel. */
+let RING = [];
+function buildRing(){
+  RING = FLAT.slice().sort((a, b) => a.mid - b.mid);
+}
+
+/* Move `n` places around the wheel and open that practice straight away.
+   Selecting on arrow (rather than requiring Enter) makes the wheel browsable
+   by holding a key down; keyboard focus follows so the next press continues. */
+function stepTo(from, n){
+  const i = RING.indexOf(from);
+  if (i < 0) return;
+  const next = RING[(i + n + RING.length) % RING.length];
+  svg.querySelectorAll(".seg-pr").forEach(s => s.setAttribute("tabindex", "-1"));
+  next._g.setAttribute("tabindex", "0");
+  next._g.focus({ preventScroll: true });
+  selectPractice(next);
+}
 
 let selected = null, selectedPath = null, compact = false, svg;
 const hub = document.getElementById("hub");
@@ -1220,7 +1259,8 @@ function buildWheel(){
   const defs = el("defs"); svg.appendChild(defs);
 
   WHEEL.pathways.forEach((p, qi) => {
-    const q0 = -90 + qi * QUARTER, q1 = q0 + QUARTER, mid = q0 + QUARTER / 2;
+    const q0 = -90 + quadrantOf(p, qi) * QUARTER, q1 = q0 + QUARTER,
+          mid = q0 + QUARTER / 2;
 
     /* ── Pathway quadrant ── */
     const g = el("g", { class:"seg seg-pw", tabindex:"0", role:"button",
@@ -1272,12 +1312,10 @@ function buildWheel(){
       pg.addEventListener("click", () => selectPractice(pr));
       pg.addEventListener("keydown", e => {
         if (e.key === "Enter" || e.key === " "){ e.preventDefault(); selectPractice(pr); }
-        if (e.key === "ArrowRight" || e.key === "ArrowLeft"){
+        if (e.key === "ArrowRight" || e.key === "ArrowLeft" ||
+            e.key === "ArrowDown"  || e.key === "ArrowUp"){
           e.preventDefault();
-          const n = (idx + (e.key === "ArrowRight" ? 1 : -1) + TOTAL) % TOTAL;
-          const t = svg.querySelector(`.seg-pr[data-idx="${n}"]`);
-          svg.querySelectorAll(".seg-pr").forEach(s => s.setAttribute("tabindex","-1"));
-          t.setAttribute("tabindex","0"); t.focus();
+          stepTo(pr, (e.key === "ArrowRight" || e.key === "ArrowDown") ? 1 : -1);
         }});
       svg.appendChild(pg);
     });
@@ -1288,6 +1326,7 @@ function buildWheel(){
   svg.appendChild(measurer);
 
   document.getElementById("wheel-mount").prepend(svg);
+  buildRing();
   drawLabels(); drawHub();
 
   /* Raleway usually arrives after first paint; re-wrap against the real face. */
@@ -1430,7 +1469,7 @@ function renderPractice(pr){
                  <span class="label">${esc(r.label)}</span><span class="go" aria-hidden="true">&rarr;</span></a>`
             : `<div class="res pending"><span class="label">${esc(r.label)}</span>
                  <span class="pending-tag">Link to come</span></div>`).join("")}</div>`
-      : `<p class="res-none">No specific resources listed &mdash; add local links here.</p>`);
+      : `<p class="res-none">No specific resources listed.</p>`);
 
   h += `<div class="tools">
       ${MANUAL.url && pr.page
@@ -1525,9 +1564,6 @@ function applyCompact(){
   if (svg){ svg.classList.toggle("compact", compact); drawLabels(); }
 }
 mq.addEventListener("change", applyCompact);
-
-document.getElementById("tally").textContent =
-  `${WHEEL.pathways.length} pathways \u00b7 ${TOTAL} practices`;
 
 if (MANUAL.url){
   document.getElementById("masthead-tools").innerHTML =
