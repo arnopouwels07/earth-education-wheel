@@ -1,0 +1,17 @@
+# Cloudflare Pages reads this file to set response headers.
+# Format: a path pattern, then indented "Header: value" lines.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+
+# The HTML changes whenever content is updated, so never serve a stale copy.
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# The manual is large and changes rarely. Cache it hard, but the filename
+# stays constant — so if you replace the PDF, purge the Cloudflare cache
+# (Pages project > Caching > Purge everything) or visitors keep the old one.
+/The_Activation_Wheel.pdf
+  Cache-Control: public, max-age=86400
