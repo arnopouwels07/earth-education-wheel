@@ -156,13 +156,12 @@ svg.wheel text{user-select:none}
   text-transform:uppercase;fill:#fff;opacity:.82;pointer-events:none}
 
 /* Compact: the wheel shrinks, so its type has to grow inside the viewBox.
-   The numbered key below carries the practice names and counts. */
-.wheel.compact .path-label{font-size:27px;letter-spacing:.09em}
-.wheel.compact .path-count{display:none}
+   The practice index below the panel carries the practice names. */
+.wheel.compact .path-label{font-size:26px;letter-spacing:.07em}
 
 /* Hub — an HTML overlay so it can carry the practice icon */
 .hub{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:22.8%;aspect-ratio:1;border-radius:50%;background:var(--card);
+  width:var(--hub-size,22.8%);aspect-ratio:1;border-radius:50%;background:var(--card);
   border:1px solid var(--line);display:flex;flex-direction:column;
   align-items:center;justify-content:center;text-align:center;gap:.5cqw;
   padding:2cqw;pointer-events:none}
@@ -190,18 +189,31 @@ svg.wheel text{user-select:none}
 .hint{font-size:11.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
   color:var(--muted);text-align:center;margin:20px 0 0}
 
-/* ── Numbered key (narrow screens) ──────────────────────────────────────── */
-.key{display:none;margin-top:28px;border-top:1px solid var(--line);padding-top:20px}
-.key.on{display:block}
-.key-group{margin-bottom:18px}
-.key-head{font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
-  margin:0 0 8px;display:flex;align-items:center;gap:9px;color:var(--ink-2)}
-.key-head::before{content:"";width:11px;height:11px;border-radius:50%;background:var(--c)}
-.key ol{list-style:none;margin:0;padding:0}
-.key button{all:unset;cursor:pointer;display:flex;gap:12px;align-items:baseline;
-  padding:8px 10px;border-radius:6px;width:100%;font-size:15px;font-weight:500}
-.key button:hover,.key button:focus-visible{background:var(--card);outline:none}
-.key .n{font-weight:700;font-size:12px;color:var(--muted);min-width:20px}
+/* ── Practice index (narrow screens) ────────────────────────────────────── */
+/* Below the breakpoint the wheel drops its labels — 22 names will not fit
+   legibly on a phone — so this list becomes the real navigation. */
+.key{display:none}
+.key.on{display:block;margin-top:34px}
+.key-intro{font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.key-group{margin-bottom:26px}
+.key-head{font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  margin:0 0 10px;display:flex;align-items:center;gap:11px;color:var(--c)}
+.key-head .kdot{width:26px;height:26px;border-radius:50%;background:var(--c);
+  display:grid;place-items:center;flex:none}
+.key-head .kdot::after{content:"";width:15px;height:15px;background:#fff;
+  -webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+.key-head .kct{margin-left:auto;font-size:11px;font-weight:600;letter-spacing:.14em;
+  color:var(--muted)}
+.key ol{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+.key button{all:unset;cursor:pointer;display:flex;gap:13px;align-items:center;
+  min-height:50px;padding:11px 15px;border:1px solid var(--line);border-radius:6px;
+  background:var(--card);width:100%;font-size:16px;font-weight:500;line-height:1.35;
+  box-sizing:border-box;transition:border-color .15s ease,background .15s ease}
+.key button:hover,.key button:focus-visible{border-color:var(--c);background:var(--c-tint);outline:none}
+.key button[aria-current="true"]{border-color:var(--c);background:var(--c-tint)}
+.key .n{font-size:12px;font-weight:700;color:var(--c);min-width:18px;flex:none}
+.key .arw{margin-left:auto;color:var(--muted);flex:none;font-size:15px}
 
 /* ── Detail panel ───────────────────────────────────────────────────────── */
 .panel{background:var(--card);border:1px solid var(--line);border-radius:6px;
@@ -339,10 +351,10 @@ footer a:hover{color:var(--ink)}
   <div class="stage">
     <div class="wheel-col">
       <div id="wheel-mount"><div class="hub" id="hub"></div></div>
-      <p class="hint" id="hint">Select a practice on the wheel</p>
-      <nav class="key" id="key" aria-label="Practices, keyed to the wheel"></nav>
+      <p class="hint" id="hint"></p>
     </div>
     <div class="panel" id="panel" role="region" aria-live="polite" aria-label="Practice detail"></div>
+    <nav class="key" id="key" aria-label="All practices, by pathway"></nav>
   </div>
 
   <footer>
@@ -1140,10 +1152,16 @@ const WHEEL = {
    ═══════════════════════════════════════════════════════════════════════════ */
 const NS = "http://www.w3.org/2000/svg";
 const CX = 360, CY = 360;
-/* Ring radii. The practice ring is deliberately the deepest band — it carries
-   the wrapped practice names, so its depth sets how readable the wheel is. */
-const R_PW_IN = 88,  R_PW_OUT = 152;
-const R_PR_IN = 160, R_PR_OUT = 348;
+/* Ring radii. Two sets: on wide screens the practice ring is the deepest band
+   because it carries the wrapped practice names. On a phone those names can't
+   be set legibly at any size, so the compact wheel drops them, thickens the
+   pathway ring to carry large pathway names, and leaves the practice ring as
+   tappable colour bands — the index below the panel does the naming. */
+const GEO = {
+  wide:    { HUB: 82, PW_IN: 88, PW_OUT: 152, PR_IN: 160, PR_OUT: 348 },
+  compact: { HUB: 76, PW_IN: 84, PW_OUT: 182, PR_IN: 190, PR_OUT: 344 }
+};
+let G = GEO.wide;
 const GAP_PW = 0.6, GAP_PR = 0.5;   // degrees of breathing room between slices
 const NUDGE = 9;                    // px a slice slides outward on hover / select
 const RAD = Math.PI / 180;
@@ -1223,10 +1241,26 @@ const iconVar = pr => {
   return own.trim() ? `var(--icon-${pr.id})` : `var(--icon-${pr.pathway.id})`;
 };
 
-/* Practices in the order they appear around the wheel, which is not the order
-   they are listed in — pathways can be positioned independently of their
-   reading order. Arrow keys walk this, so pressing → always moves to the
-   neighbouring wedge rather than jumping across the wheel. */
+/* A pathway name set on an arc is silently clipped if it's longer than the
+   arc. Rather than hard-coding a size that happens to fit today's four names,
+   measure them and step down until the longest fits — then apply that one
+   size to all four, so they stay visually consistent with each other. */
+function fitPathLabels(){
+  const labels = [...svg.querySelectorAll(".path-label")].map(t => {
+    const tp = t.querySelector("textPath");
+    const path = svg.querySelector(tp.getAttribute("href"));
+    t.style.removeProperty("font-size");
+    return { t, arc: path ? path.getTotalLength() * 0.86 : Infinity };
+  });
+  if (!labels.length) return;
+
+  let size = parseFloat(getComputedStyle(labels[0].t).fontSize);
+  for (let i = 0; i < 14; i++){
+    if (labels.every(l => l.t.getComputedTextLength() <= l.arc)) break;
+    size -= 1;
+    labels.forEach(l => { l.t.style.fontSize = size + "px"; });
+  }
+}
 let RING = [];
 function buildRing(){
   RING = FLAT.slice().sort((a, b) => a.mid - b.mid);
@@ -1269,7 +1303,7 @@ function buildWheel(){
     g.style.setProperty("--dx", (Math.sin(mid*RAD) * (NUDGE-4)).toFixed(2)+"px");
     g.style.setProperty("--dy", (-Math.cos(mid*RAD) * (NUDGE-4)).toFixed(2)+"px");
     g.appendChild(el("path", { class:"slice",
-      d: sector(R_PW_IN, R_PW_OUT, q0 + GAP_PW, q1 - GAP_PW), fill:`var(--${p.id})` }));
+      d: sector(G.PW_IN, G.PW_OUT, q0 + GAP_PW, q1 - GAP_PW), fill:`var(--${p.id})` }));
 
     const norm = ((mid % 360) + 360) % 360;
     const flip = norm > 90 && norm < 270;   // lower half: set the name on the inner arc
@@ -1279,9 +1313,18 @@ function buildWheel(){
       const tp = el("textPath", { href:`#${id}`, startOffset:"50%" });
       tp.textContent = txt; t.appendChild(tp); g.appendChild(t);
     };
-    mk(`arc-${p.id}`,   flip ? R_PW_IN + 25 : R_PW_OUT - 23, "path-label", p.name);
-    mk(`arc-${p.id}-c`, flip ? R_PW_OUT - 14 : R_PW_IN + 17, "path-count",
-       `${p.practices.length} practices`);
+    /* Compact sets the name on the band's centre line whichever way it faces —
+       the flipped inner radius gives too short an arc and clips long names
+       like "COMMUNITY" — and drops the count, which collided with its
+       neighbour at the quadrant seams. The index below repeats the counts. */
+    if (compact){
+      mk(`arc-${p.id}`, (G.PW_IN + G.PW_OUT) / 2 + (flip ? 6 : -6),
+         "path-label", p.name);
+    } else {
+      mk(`arc-${p.id}`,   flip ? G.PW_IN + 25 : G.PW_OUT - 23, "path-label", p.name);
+      mk(`arc-${p.id}-c`, flip ? G.PW_OUT - 14 : G.PW_IN + 17, "path-count",
+         `${p.practices.length} practices`);
+    }
 
     g.addEventListener("click", () => selectPathway(p));
     g.addEventListener("keydown", e => {
@@ -1302,7 +1345,7 @@ function buildWheel(){
       pg.style.setProperty("--dy", (-Math.cos(pr.mid*RAD) * NUDGE).toFixed(2)+"px");
 
       const slice = el("path", { class:"slice",
-        d: sector(R_PR_IN, R_PR_OUT, a0 + GAP_PR, a1 - GAP_PR), fill:`var(--${p.id}-tint)` });
+        d: sector(G.PR_IN, G.PR_OUT, a0 + GAP_PR, a1 - GAP_PR), fill:`var(--${p.id}-tint)` });
       pg.appendChild(slice); pr._slice = slice; pr._g = pg;
 
       pg.addEventListener("mouseenter", () => {
@@ -1327,29 +1370,29 @@ function buildWheel(){
 
   document.getElementById("wheel-mount").prepend(svg);
   buildRing();
+  fitPathLabels();
   drawLabels(); drawHub();
 
   /* Raleway usually arrives after first paint; re-wrap against the real face. */
-  if (document.fonts?.ready) document.fonts.ready.then(() => drawLabels());
+  if (document.fonts?.ready)
+    document.fonts.ready.then(() => { fitPathLabels(); drawLabels(); });
 }
 
 /* Practice names run radially outward, as on the printed wheel. On the left
    half they are flipped so they still read left-to-right. */
 function drawLabels(){
   svg.querySelectorAll(".seg-pr .p-label, .seg-pr .p-num").forEach(n => n.remove());
+  /* Compact: no labels at all. Twenty-two names can't be set legibly on a
+     phone, and numbers scattered round the ring read as noise — the practice
+     index below the panel carries the naming instead. */
+  if (compact) return;
+
   FLAT.forEach(pr => {
     const am = pr.mid, norm = ((am % 360) + 360) % 360, flip = norm > 180;
-    const rMid = (R_PR_IN + R_PR_OUT) / 2;
+    const rMid = (G.PR_IN + G.PR_OUT) / 2;
     const [x, y] = pt(rMid, am);
 
-    if (compact){
-      const t = el("text", { class:"p-num", x, y, "text-anchor":"middle",
-        "dominant-baseline":"central", transform:`rotate(${flip ? am+180 : am} ${x} ${y})` });
-      t.textContent = String(pr.globalNum).padStart(2,"0");
-      pr._g.appendChild(t); return;
-    }
-
-    const lines = wrap(pr.name, R_PR_OUT - R_PR_IN - 44, 3);
+    const lines = wrap(pr.name, G.PR_OUT - G.PR_IN - 44, 3);
     const t = el("text", { class:"p-label", x, y, "text-anchor":"middle",
       transform:`rotate(${flip ? am + 90 : am - 90} ${x} ${y})` });
     const first = -((lines.length - 1) * 0.58) + 0.34;
@@ -1403,6 +1446,16 @@ function paint(){
   drawHub();
 }
 
+/* The keyboard tip is meaningless on a phone, where there are no arrow keys
+   and the practice index is the main way in. */
+function setHint(onPractice){
+  document.getElementById("hint").textContent =
+    compact ? (onPractice ? "Tap another segment, or choose from the list below"
+                          : "Tap a segment, or choose from the list below")
+            : (onPractice ? "Use \u2190 \u2192 to move between practices"
+                          : "Select a practice on the wheel");
+}
+
 function setPanelColour(p){
   panel.style.setProperty("--c", `var(--${p.id})`);
   panel.style.setProperty("--c-tint", `var(--${p.id}-tint)`);
@@ -1410,8 +1463,8 @@ function setPanelColour(p){
 
 function selectPractice(pr, push = true){
   selected = pr; selectedPath = null;
-  paint(); renderPractice(pr);
-  document.getElementById("hint").textContent = "Use \u2190 \u2192 to move between practices";
+  paint(); renderPractice(pr); markKey();
+  setHint(true);
   if (push) history.replaceState(null, "", "#" + pr.id);
   if (window.matchMedia("(max-width:1040px)").matches)
     panel.scrollIntoView({ behavior:"smooth", block:"start" });
@@ -1419,15 +1472,15 @@ function selectPractice(pr, push = true){
 
 function selectPathway(p){
   selected = null; selectedPath = p;
-  paint(); renderPathway(p);
-  document.getElementById("hint").textContent = "Select a practice on the wheel";
+  paint(); renderPathway(p); markKey();
+  setHint(false);
   history.replaceState(null, "", "#" + p.id);
 }
 
 function clearAll(){
   selected = null; selectedPath = null;
-  paint(); renderLanding();
-  document.getElementById("hint").textContent = "Select a practice on the wheel";
+  paint(); renderLanding(); markKey();
+  setHint(false);
   history.replaceState(null, "", location.pathname + location.search);
 }
 
@@ -1545,25 +1598,47 @@ const byId = id => FLAT.find(p => p.id === id);
 /* ── Numbered key ──────────────────────────────────────────────────────── */
 function buildKey(){
   const k = document.getElementById("key");
-  k.innerHTML = WHEEL.pathways.map(p => `
-    <div class="key-group" style="--c:var(--${p.id})">
-      <h3 class="key-head">${esc(p.name)}</h3>
+  k.innerHTML = `<p class="key-intro">All 22 practices</p>` +
+    WHEEL.pathways.map(p => `
+    <div class="key-group" style="--c:var(--${p.id});--c-tint:var(--${p.id}-tint);--m:var(--icon-${p.id})">
+      <h3 class="key-head"><span class="kdot"></span>${esc(p.name)}
+        <span class="kct">${p.practices.length} practices</span></h3>
       <ol>${p.practices.map(pr => `<li><button data-go="${pr.id}">
-        <span class="n">${String(pr.globalNum).padStart(2,"0")}</span>
-        <span>${esc(pr.name)}</span></button></li>`).join("")}</ol>
+        <span class="n">${String(pr.nth).padStart(2,"0")}</span>
+        <span>${esc(pr.name)}</span>
+        <span class="arw" aria-hidden="true">&rsaquo;</span></button></li>`).join("")}</ol>
     </div>`).join("");
   k.querySelectorAll("[data-go]").forEach(b =>
     b.addEventListener("click", () => selectPractice(byId(b.dataset.go))));
 }
 
+/* Keep the index in step with whatever is open, so someone scrolling back
+   down can see where they are. */
+function markKey(){
+  document.querySelectorAll("#key [data-go]").forEach(b =>
+    b.setAttribute("aria-current", String(!!selected && b.dataset.go === selected.id)));
+}
+
 /* ── Boot ──────────────────────────────────────────────────────────────── */
 const mq = window.matchMedia("(max-width: 760px)");
-function applyCompact(){
+function applyCompact(rebuild = true){
+  const was = compact;
   compact = mq.matches;
+  G = compact ? GEO.compact : GEO.wide;
   document.getElementById("key").classList.toggle("on", compact);
-  if (svg){ svg.classList.toggle("compact", compact); drawLabels(); }
+  document.getElementById("hub").style.setProperty("--hub-size", (2 * G.HUB / 720 * 100) + "%");
+  /* The two layouts use different radii, so the rings have to be redrawn
+     rather than restyled. Only on an actual breakpoint crossing. */
+  if (svg && rebuild && was !== compact){
+    svg.remove();
+    buildWheel();
+    paint();
+  } else if (svg){
+    svg.classList.toggle("compact", compact);
+    drawLabels();
+  }
 }
-mq.addEventListener("change", applyCompact);
+mq.addEventListener("change", () => applyCompact());
 
 if (MANUAL.url){
   document.getElementById("masthead-tools").innerHTML =
@@ -1571,7 +1646,10 @@ if (MANUAL.url){
         download>Download ${esc(MANUAL.label)} (PDF)</a>`;
 }
 
-buildWheel(); buildKey(); applyCompact(); renderLanding();
+applyCompact(false);            // sets `compact` and `G` before anything is drawn
+setHint(false);
+buildWheel(); buildKey(); renderLanding();
+if (compact) svg.classList.add("compact");
 
 function openFromHash(){
   const h = decodeURIComponent(location.hash.replace("#",""));
